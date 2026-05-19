@@ -5,6 +5,7 @@ import { deviceBindingApiPlugin } from './vite-device-binding-api.js'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   plugins: [
     deviceBindingApiPlugin(),
     react(),

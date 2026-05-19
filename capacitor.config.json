@@ -1,0 +1,11 @@
+{
+  "appId": "com.geolocate.app",
+  "appName": "Geo Locate",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

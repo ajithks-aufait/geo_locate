@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core'
+import { DeviceImei } from '../plugins/deviceImei.js'
+
 /** Allowed device IMEI for this app (must match on login). */
 export const DEFAULT_DEVICE_IMEI = '865780069245455'
 
@@ -26,14 +29,58 @@ export function normalizeImei(value) {
   return String(value ?? '').replace(/\D/g, '')
 }
 
+/** True when running inside the Capacitor Android APK (not Chrome browser PWA). */
+export function isRunningInNativeApp() {
+  return Capacitor.isNativePlatform()
+}
+
 export function isNativeImeiBridgeAvailable() {
   if (typeof window === 'undefined') return false
   const w = window
   return (
+    isRunningInNativeApp() ||
     typeof w.Android?.getImei === 'function' ||
     typeof w.Android?.getDeviceImei === 'function' ||
     Boolean(w.__DEVICE_IMEI__)
   )
+}
+
+export function getDeviceImeiEnvironmentMessage() {
+  if (isRunningInNativeApp()) {
+    return 'Could not read device IMEI. Allow Phone permission in app settings and try again.'
+  }
+  if (import.meta.env.DEV && import.meta.env.VITE_DEV_DEVICE_IMEI) {
+    return 'Using dev IMEI from VITE_DEV_DEVICE_IMEI (browser testing only).'
+  }
+  return (
+    'IMEI cannot be read in the browser. Install the Geo Locate Android app from your ' +
+    'build (npm run cap:android) — a normal PWA in Chrome cannot access IMEI.'
+  )
+}
+
+function readDevFallbackImei() {
+  if (!import.meta.env.DEV) return null
+  const dev = import.meta.env.VITE_DEV_DEVICE_IMEI
+  if (!dev) return null
+  const imei = normalizeImei(dev)
+  return imei.length >= 14 ? imei : null
+}
+
+async function readCapacitorImei() {
+  if (!isRunningInNativeApp()) return null
+  try {
+    const result = await DeviceImei.getImei()
+    const imei = normalizeImei(result?.imei)
+    if (imei.length >= 14) {
+      if (typeof window !== 'undefined') {
+        window.__DEVICE_IMEI__ = imei
+      }
+      return imei
+    }
+  } catch (err) {
+    console.warn('[device] Capacitor DeviceImei.getImei failed:', err)
+  }
+  return null
 }
 
 function readNativeImei() {
@@ -46,7 +93,7 @@ function readNativeImei() {
     /* WebView bridge may throw if permission denied */
   }
   if (w.__DEVICE_IMEI__) return String(w.__DEVICE_IMEI__)
-  return null
+  return readDevFallbackImei()
 }
 
 function delay(ms) {
@@ -54,12 +101,17 @@ function delay(ms) {
 }
 
 /**
- * Polls the Android WebView bridge — IMEI may be injected shortly after page load.
+ * Polls Capacitor plugin + Android WebView bridge — IMEI may appear after permission grant.
  */
 export async function fetchNativeImeiAsync({
   maxAttempts = NATIVE_IMEI_MAX_ATTEMPTS,
   intervalMs = NATIVE_IMEI_POLL_MS,
 } = {}) {
+  const fromCapacitor = await readCapacitorImei()
+  if (fromCapacitor) {
+    return { ok: true, imei: fromCapacitor, source: 'native' }
+  }
+
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const imei = normalizeImei(readNativeImei())
     if (imei.length >= 14) {
@@ -69,6 +121,12 @@ export async function fetchNativeImeiAsync({
       await delay(intervalMs)
     }
   }
+
+  const devImei = readDevFallbackImei()
+  if (devImei) {
+    return { ok: true, imei: devImei, source: 'dev' }
+  }
+
   return { ok: false }
 }
 
@@ -105,10 +163,10 @@ export async function captureDeviceImeiAsync() {
 }
 
 /**
- * Reads IMEI from native bridge or storage (PWA cannot read IMEI in normal browsers).
+ * Reads IMEI from native bridge or storage.
  */
 export function captureDeviceImei(manualImei) {
-  const sources = [readNativeImei(), cachedNativeImei, manualImei]
+  const sources = [readNativeImei(), cachedNativeImei, manualImei, readDevFallbackImei()]
   if (canUsePersistentStorage()) {
     try {
       sources.push(localStorage.getItem(DEVICE_IMEI_KEY))
@@ -126,8 +184,7 @@ export function captureDeviceImei(manualImei) {
 
   return {
     ok: false,
-    error:
-      'Device IMEI could not be read. Open the installed app on the registered Android phone.',
+    error: getDeviceImeiEnvironmentMessage(),
   }
 }
 
@@ -140,7 +197,7 @@ export function validateImeiMatchesDefault(imei) {
     return {
       ok: false,
       code: 'IMEI_CAPTURE_FAILED',
-      error: 'Device IMEI is missing. Sign-in is not allowed.',
+      error: getDeviceImeiEnvironmentMessage(),
     }
   }
 
@@ -155,10 +212,6 @@ export function validateImeiMatchesDefault(imei) {
   return { ok: true, imei: current }
 }
 
-/**
- * Capture IMEI and verify it matches the default allowed IMEI.
- * Used before redirecting to the home screen.
- */
 /** Capture + compare IMEI to registered device (call on sign-in). */
 export async function captureDeviceIdAsync() {
   const captured = await captureDeviceImeiAsync()

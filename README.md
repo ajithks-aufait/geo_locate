@@ -1,16 +1,42 @@
-# React + Vite
+# Geo Locate
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite PWA with device IMEI binding for sign-in.
 
-Currently, two official plugins are available:
+## IMEI and the Android app
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**A PWA opened in Chrome cannot read the phone IMEI** — browsers block it for privacy. IMEI works only in the **native Android app** built with Capacitor.
 
-## React Compiler
+### Run on Android (required for IMEI)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install dependencies: `npm ci`
+2. Set the allowed IMEI in `src/utils/device.js` → `DEFAULT_DEVICE_IMEI`
+3. Build and open Android Studio:
+   ```bash
+   npm run cap:android
+   ```
+4. In Android Studio, run the app on a **physical device**
+5. When prompted, allow **Phone** permission
+6. Sign in — IMEI is read in the background and compared to `DEFAULT_DEVICE_IMEI`
 
-## Expanding the ESLint configuration
+After web changes:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run cap:sync
+```
+
+### Browser development only
+
+For local testing in Chrome, set in `.env.development`:
+
+```
+VITE_DEV_DEVICE_IMEI=your_registered_imei_here
+```
+
+Then `npm run dev`. This does **not** apply to production builds.
+
+## Web app
+
+```bash
+npm run dev
+npm run build
+```
