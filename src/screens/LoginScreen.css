@@ -100,6 +100,43 @@
   border-radius: 10px;
 }
 
+.login__field--device {
+  gap: 0.55rem;
+}
+
+.login__device-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #6b6578;
+  background: #f8f7fa;
+  border: 1px solid #e8e6ee;
+  border-radius: 10px;
+}
+
+.login__device-status-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: #863bff;
+  margin-top: 1px;
+}
+
+.login__device-status--ok {
+  color: #3d3848;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.login__device-status--warn {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
 .login__field {
   display: flex;
   flex-direction: column;

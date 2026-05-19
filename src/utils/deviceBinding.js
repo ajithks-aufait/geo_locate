@@ -1,4 +1,4 @@
-import { captureDeviceId } from './device.js'
+import { captureDeviceId, captureDeviceIdAsync } from './device.js'
 
 const LOCAL_BINDINGS_KEY = 'geo_loc_device_bindings'
 
@@ -82,7 +82,7 @@ function setLocalBinding(email, deviceId) {
 }
 
 export async function verifyAndBindDevice(email, manualImei) {
-  const captured = captureDeviceId(manualImei)
+  const captured = await captureDeviceIdAsync(manualImei)
   if (!captured.ok) {
     return {
       ok: false,
@@ -124,7 +124,7 @@ export async function verifyAndBindDevice(email, manualImei) {
       return {
         ok: false,
         code: 'DEVICE_CAPTURE_FAILED',
-        error: 'Device ID (EMI) could not be stored on this device.',
+        error: 'Device IMEI could not be stored on this device.',
       }
     }
     /* API unavailable — on-device registry */
@@ -150,7 +150,7 @@ export async function verifyAndBindDevice(email, manualImei) {
     return {
       ok: false,
       code: 'DEVICE_CAPTURE_FAILED',
-      error: 'Device ID (EMI) could not be stored on this device.',
+      error: 'Device IMEI could not be stored on this device.',
     }
   }
 }

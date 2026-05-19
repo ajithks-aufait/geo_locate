@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { login } from '../utils/auth.js'
 import {
-  captureDeviceImei,
+  captureDeviceImeiAsync,
   formatDeviceId,
   getDeviceId,
+  isNativeImeiBridgeAvailable,
 } from '../utils/device.js'
 import './LoginScreen.css'
 
@@ -101,6 +102,8 @@ export default function LoginScreen({ onSuccess }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [imei, setImei] = useState('')
+  const [imeiFromDevice, setImeiFromDevice] = useState(false)
+  const [imeiLoading, setImeiLoading] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -108,8 +111,28 @@ export default function LoginScreen({ onSuccess }) {
   const [info, setInfo] = useState('')
 
   useEffect(() => {
-    const captured = captureDeviceImei()
-    if (captured.ok) setImei(captured.imei)
+    let cancelled = false
+
+    async function loadDeviceImei() {
+      setImeiLoading(true)
+      const captured = await captureDeviceImeiAsync()
+      if (cancelled) return
+
+      if (captured.ok) {
+        setImei(captured.imei)
+        setImeiFromDevice(captured.source === 'native' || isNativeImeiBridgeAvailable())
+        setError('')
+      } else if (isNativeImeiBridgeAvailable()) {
+        setError('Device IMEI could not be read from this phone. Check app permissions.')
+      }
+
+      setImeiLoading(false)
+    }
+
+    loadDeviceImei()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleSubmit = async (e) => {
@@ -118,7 +141,22 @@ export default function LoginScreen({ onSuccess }) {
     setInfo('')
     setLoading(true)
 
-    const result = await login({ email, password, remember, imei })
+    const freshImei = await captureDeviceImeiAsync(imei)
+    if (!freshImei.ok) {
+      setLoading(false)
+      setError(
+        freshImei.error ||
+          'Device IMEI could not be read. Open the app on the registered Android phone.',
+      )
+      return
+    }
+
+    const result = await login({
+      email,
+      password,
+      remember,
+      imei: freshImei.imei,
+    })
     setLoading(false)
 
     if (!result.ok || !result.deviceId) {
@@ -158,7 +196,8 @@ export default function LoginScreen({ onSuccess }) {
           Welcome back
         </h1>
         <p className="login__subtitle">
-          Sign in only works when this device&apos;s IMEI matches the registered phone.
+          Device IMEI is read automatically from this phone and checked against the
+          registered device before you can open the app.
         </p>
       </div>
 
@@ -194,25 +233,46 @@ export default function LoginScreen({ onSuccess }) {
           </span>
         </label>
 
-        <label className="login__field">
+        <div className="login__field login__field--device">
           <span className="login__label">Device IMEI</span>
-          <span className="login__input-wrap">
-            <span className="login__input-icon">
-              <PhoneIcon />
+          {imeiLoading ? (
+            <p className="login__device-status" role="status">
+              Reading device IMEI…
+            </p>
+          ) : imei ? (
+            <p className="login__device-status login__device-status--ok" role="status">
+              <span className="login__device-status-icon" aria-hidden="true">
+                <PhoneIcon />
+              </span>
+              <span>
+                {imeiFromDevice ? 'Detected on this phone: ' : 'Using saved IMEI: '}
+                <strong>{formatDeviceId(imei)}</strong>
+              </span>
+            </p>
+          ) : (
+            <p className="login__device-status login__device-status--warn" role="status">
+              IMEI not available. Install the Android app on the registered phone, or
+              enter it below for testing.
+            </p>
+          )}
+          {!imeiFromDevice && !imeiLoading ? (
+            <span className="login__input-wrap">
+              <span className="login__input-icon">
+                <PhoneIcon />
+              </span>
+              <input
+                type="text"
+                name="imei"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="Enter device IMEI (testing only)"
+                value={imei}
+                onChange={(e) => setImei(e.target.value.replace(/\D/g, ''))}
+                disabled={loading}
+              />
             </span>
-            <input
-              type="text"
-              name="imei"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="Enter device IMEI"
-              value={imei}
-              onChange={(e) => setImei(e.target.value.replace(/\D/g, ''))}
-              disabled={loading}
-              required
-            />
-          </span>
-        </label>
+          ) : null}
+        </div>
 
         <label className="login__field">
           <span className="login__label">Password</span>
@@ -256,8 +316,12 @@ export default function LoginScreen({ onSuccess }) {
           </button>
         </div>
 
-        <button type="submit" className="login__submit" disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign in'}
+        <button
+          type="submit"
+          className="login__submit"
+          disabled={loading || imeiLoading}
+        >
+          {loading ? 'Signing in…' : imeiLoading ? 'Reading device…' : 'Sign in'}
         </button>
       </form>
 

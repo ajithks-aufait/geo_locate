@@ -1,4 +1,4 @@
-import { captureDeviceId } from './device.js'
+import { captureDeviceId, captureDeviceIdAsync, DEVICE_NOT_BOUND_MESSAGE } from './device.js'
 import { isDeviceAllowedForSession, verifyAndBindDevice } from './deviceBinding.js'
 
 const AUTH_KEY = 'geo_loc_session'
@@ -79,9 +79,7 @@ export async function login({ email, password, remember, imei }) {
     if (binding.code === 'IMEI_MISMATCH') {
       return {
         ok: false,
-        error:
-          binding.error ||
-          'Device IMEI does not match. Sign-in is only allowed on the registered device.',
+        error: binding.error || DEVICE_NOT_BOUND_MESSAGE,
         code: 'IMEI_MISMATCH',
       }
     }
@@ -100,15 +98,14 @@ export async function login({ email, password, remember, imei }) {
     if (binding.code === 'DEVICE_MISMATCH') {
       return {
         ok: false,
-        error:
-          'This account is already registered on another device. Sign in is only allowed on that device.',
+        error: DEVICE_NOT_BOUND_MESSAGE,
         code: 'DEVICE_MISMATCH',
       }
     }
     return { ok: false, error: 'Could not verify this device. Try again.' }
   }
 
-  if (!binding.deviceId || !captureDeviceId(imei).ok) {
+  if (!binding.deviceId || !(await captureDeviceIdAsync(imei)).ok) {
     return {
       ok: false,
       error: 'Device IMEI could not be verified. You cannot continue to the app.',
