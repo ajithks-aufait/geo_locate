@@ -1,14 +1,37 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getSessionEmail, signOut } from '../utils/auth.js'
 import { formatDeviceId, getDeviceId } from '../utils/device.js'
+import { loadLastLocation, saveLastLocation } from '../utils/locationCache.js'
+import { useOnlineStatus } from '../utils/useOnlineStatus.js'
 import './HomeScreen.css'
 
 export default function HomeScreen() {
+  const online = useOnlineStatus()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [coords, setCoords] = useState(null)
+  const [coords, setCoords] = useState(() => loadLastLocation())
+  const [cachedAt, setCachedAt] = useState(() => loadLastLocation()?.savedAt ?? null)
+
+  useEffect(() => {
+    const saved = loadLastLocation()
+    if (saved) {
+      setCoords(saved)
+      setCachedAt(saved.savedAt ?? null)
+    }
+  }, [])
 
   const locate = useCallback(() => {
+    if (!online) {
+      const saved = loadLastLocation()
+      if (saved) {
+        setCoords(saved)
+        setCachedAt(saved.savedAt ?? null)
+        setError('Offline — showing your last saved location.')
+      } else {
+        setError('You are offline and no saved location is on this device yet.')
+      }
+      return
+    }
     if (!('geolocation' in navigator)) {
       setError('Geolocation is not supported on this device.')
       return
@@ -17,11 +40,14 @@ export default function HomeScreen() {
     setLoading(true)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setCoords({
+        const fix = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
-        })
+        }
+        saveLastLocation(fix)
+        setCoords(fix)
+        setCachedAt(new Date().toISOString())
         setLoading(false)
       },
       (err) => {
@@ -31,7 +57,7 @@ export default function HomeScreen() {
       },
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
     )
-  }, [])
+  }, [online])
 
   const handleSignOut = () => {
     signOut()
@@ -72,7 +98,14 @@ export default function HomeScreen() {
 
         {coords ? (
           <section className="home__card" aria-live="polite">
-            <h2 className="home__card-title">Last fix</h2>
+            <h2 className="home__card-title">
+              {cachedAt && !online ? 'Last saved (offline)' : 'Last fix'}
+            </h2>
+            {cachedAt ? (
+              <p className="home__cached-at">
+                Saved {new Date(cachedAt).toLocaleString()}
+              </p>
+            ) : null}
             <dl className="home__dl">
               <div>
                 <dt>Latitude</dt>

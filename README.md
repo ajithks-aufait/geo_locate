@@ -34,9 +34,19 @@ VITE_DEV_DEVICE_IMEI=your_registered_imei_here
 
 Then `npm run dev`. This does **not** apply to production builds.
 
-## Web app
+## Web app & offline PWA
+
+The app uses a **Workbox service worker** (via `vite-plugin-pwa`) that:
+
+- Precaches JS, CSS, HTML, icons, and splash assets after the first visit
+- Serves the app shell offline (`index.html` fallback for navigation)
+- Caches GET `/api/*` with network-first (falls back when offline; login binding also uses `localStorage`)
+- Shows banners when the app is ready offline or when you lose connection
 
 ```bash
-npm run dev
-npm run build
+npm run dev          # service worker enabled in dev (see vite PWA devOptions)
+npm run build        # generates dist/sw.js + precache manifest
+npm run preview      # test production offline: build, preview, visit once online, then go offline
 ```
+
+After deploy, users must open the app **once while online** so the service worker can install and cache assets.

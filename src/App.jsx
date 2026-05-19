@@ -5,6 +5,7 @@ import { isAuthenticated } from './utils/auth.js'
 import { hasValidDeviceId, prefetchDeviceImeiInBackground } from './utils/device.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import HomeScreen from './screens/HomeScreen.jsx'
+import PwaStatusBar from './components/PwaStatusBar.jsx'
 import './App.css'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
 
   return (
     <>
+      <PwaStatusBar />
       {!splashDone ? (
         <SplashScreen onComplete={() => setSplashDone(true)} />
       ) : null}

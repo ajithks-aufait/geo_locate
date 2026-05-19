@@ -111,6 +111,12 @@
   padding: 16px 18px;
 }
 
+.home__cached-at {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: #6b6578;
+}
+
 .home__card-title {
   margin: 0 0 12px;
   font-size: 0.85rem;

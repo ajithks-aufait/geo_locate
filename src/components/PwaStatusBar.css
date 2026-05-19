@@ -1,0 +1,28 @@
+.pwa-status {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  margin: 0;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.pwa-status--offline {
+  color: #fef3c7;
+  background: #92400e;
+}
+
+.pwa-status--ready {
+  color: #ecfdf5;
+  background: #047857;
+}
+
+.pwa-status--update {
+  color: #ede9fe;
+  background: #5b21b6;
+}

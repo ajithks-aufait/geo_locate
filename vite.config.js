@@ -44,13 +44,63 @@ export default defineConfig({
         ],
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,gif,mp4,webm}'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        globIgnores: ['**/node_modules/**'],
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/\/api\//],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) =>
+              request.method === 'GET' && url.pathname.includes('/api/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'geo-loc-api',
+              networkTimeoutSeconds: 8,
+              expiration: {
+                maxEntries: 32,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: ({ request }) =>
+              request.destination === 'image' ||
+              request.destination === 'font',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'geo-loc-static-media',
+              expiration: {
+                maxEntries: 64,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
+          {
+            urlPattern: ({ request }) =>
+              request.mode === 'navigate' || request.destination === 'document',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'geo-loc-pages',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 16,
+                maxAgeSeconds: 60 * 60 * 24,
+              },
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: true,
+        type: 'module',
+        navigateFallback: 'index.html',
       },
     }),
   ],
