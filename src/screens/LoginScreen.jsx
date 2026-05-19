@@ -1,11 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { login } from '../utils/auth.js'
-import {
-  captureDeviceImeiAsync,
-  formatDeviceId,
-  getDeviceId,
-  isNativeImeiBridgeAvailable,
-} from '../utils/device.js'
 import './LoginScreen.css'
 
 function MailIcon() {
@@ -81,59 +75,14 @@ function EyeIcon({ open }) {
   )
 }
 
-function PhoneIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect
-        x="7"
-        y="3"
-        width="10"
-        height="18"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path d="M10 6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 export default function LoginScreen({ onSuccess }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [imei, setImei] = useState('')
-  const [imeiFromDevice, setImeiFromDevice] = useState(false)
-  const [imeiLoading, setImeiLoading] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadDeviceImei() {
-      setImeiLoading(true)
-      const captured = await captureDeviceImeiAsync()
-      if (cancelled) return
-
-      if (captured.ok) {
-        setImei(captured.imei)
-        setImeiFromDevice(captured.source === 'native' || isNativeImeiBridgeAvailable())
-        setError('')
-      } else if (isNativeImeiBridgeAvailable()) {
-        setError('Device IMEI could not be read from this phone. Check app permissions.')
-      }
-
-      setImeiLoading(false)
-    }
-
-    loadDeviceImei()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -141,37 +90,17 @@ export default function LoginScreen({ onSuccess }) {
     setInfo('')
     setLoading(true)
 
-    const freshImei = await captureDeviceImeiAsync(imei)
-    if (!freshImei.ok) {
-      setLoading(false)
-      setError(
-        freshImei.error ||
-          'Device IMEI could not be read. Open the app on the registered Android phone.',
-      )
-      return
-    }
-
-    const result = await login({
-      email,
-      password,
-      remember,
-      imei: freshImei.imei,
-    })
+    const result = await login({ email, password, remember })
     setLoading(false)
 
     if (!result.ok || !result.deviceId) {
-      setError(
-        result.error ||
-          'Device IMEI could not be verified. You will stay on the login screen.',
-      )
+      setError(result.error || 'Sign-in failed. Please try again.')
       return
     }
 
     if (result.firstBind) {
-      setInfo(
-        `Device IMEI verified (${formatDeviceId(result.deviceId ?? getDeviceId())}). Opening app…`,
-      )
-      window.setTimeout(() => onSuccess(), 1200)
+      setInfo('Device verified. Opening app…')
+      window.setTimeout(() => onSuccess(), 800)
       return
     }
 
@@ -195,10 +124,7 @@ export default function LoginScreen({ onSuccess }) {
         <h1 id="login-title" className="login__title">
           Welcome back
         </h1>
-        <p className="login__subtitle">
-          Device IMEI is read automatically from this phone and checked against the
-          registered device before you can open the app.
-        </p>
+        <p className="login__subtitle">Sign in with your email and password.</p>
       </div>
 
       <form className="login__form" onSubmit={handleSubmit} noValidate>
@@ -232,47 +158,6 @@ export default function LoginScreen({ onSuccess }) {
             />
           </span>
         </label>
-
-        <div className="login__field login__field--device">
-          <span className="login__label">Device IMEI</span>
-          {imeiLoading ? (
-            <p className="login__device-status" role="status">
-              Reading device IMEI…
-            </p>
-          ) : imei ? (
-            <p className="login__device-status login__device-status--ok" role="status">
-              <span className="login__device-status-icon" aria-hidden="true">
-                <PhoneIcon />
-              </span>
-              <span>
-                {imeiFromDevice ? 'Detected on this phone: ' : 'Using saved IMEI: '}
-                <strong>{formatDeviceId(imei)}</strong>
-              </span>
-            </p>
-          ) : (
-            <p className="login__device-status login__device-status--warn" role="status">
-              IMEI not available. Install the Android app on the registered phone, or
-              enter it below for testing.
-            </p>
-          )}
-          {!imeiFromDevice && !imeiLoading ? (
-            <span className="login__input-wrap">
-              <span className="login__input-icon">
-                <PhoneIcon />
-              </span>
-              <input
-                type="text"
-                name="imei"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="Enter device IMEI (testing only)"
-                value={imei}
-                onChange={(e) => setImei(e.target.value.replace(/\D/g, ''))}
-                disabled={loading}
-              />
-            </span>
-          ) : null}
-        </div>
 
         <label className="login__field">
           <span className="login__label">Password</span>
@@ -316,12 +201,8 @@ export default function LoginScreen({ onSuccess }) {
           </button>
         </div>
 
-        <button
-          type="submit"
-          className="login__submit"
-          disabled={loading || imeiLoading}
-        >
-          {loading ? 'Signing in…' : imeiLoading ? 'Reading device…' : 'Sign in'}
+        <button type="submit" className="login__submit" disabled={loading}>
+          {loading ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
 

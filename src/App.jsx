@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import SplashScreen from './utils/SplashScreen.jsx'
 import { useHandsetOrTablet } from './utils/useHandsetOrTablet.js'
 import { isAuthenticated } from './utils/auth.js'
-import { hasValidDeviceId } from './utils/device.js'
+import { hasValidDeviceId, prefetchDeviceImeiInBackground } from './utils/device.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import HomeScreen from './screens/HomeScreen.jsx'
 import './App.css'
@@ -11,6 +11,10 @@ function App() {
   const isHandsetOrTablet = useHandsetOrTablet()
   const [splashDone, setSplashDone] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(() => isAuthenticated())
+
+  useEffect(() => {
+    if (isHandsetOrTablet) prefetchDeviceImeiInBackground()
+  }, [isHandsetOrTablet])
 
   if (!isHandsetOrTablet) {
     return (

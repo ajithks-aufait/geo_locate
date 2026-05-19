@@ -8,6 +8,9 @@ const DEVICE_IMEI_KEY = 'geo_loc_device_imei'
 const NATIVE_IMEI_POLL_MS = 200
 const NATIVE_IMEI_MAX_ATTEMPTS = 20
 
+let cachedNativeImei = null
+let backgroundPrefetchPromise = null
+
 function canUsePersistentStorage() {
   try {
     const probe = '__geo_loc_storage_probe__'
@@ -69,20 +72,43 @@ export async function fetchNativeImeiAsync({
   return { ok: false }
 }
 
-/**
- * Reads IMEI from native bridge, storage, or manual entry (PWA cannot read IMEI in normal browsers).
- */
-export async function captureDeviceImeiAsync(manualImei) {
-  const native = await fetchNativeImeiAsync()
-  if (native.ok) return native
-  return captureDeviceImei(manualImei)
+/** Starts IMEI read in the background (no UI). Safe to call multiple times. */
+export function prefetchDeviceImeiInBackground() {
+  if (backgroundPrefetchPromise) return backgroundPrefetchPromise
+
+  backgroundPrefetchPromise = (async () => {
+    const native = await fetchNativeImeiAsync()
+    if (native.ok) {
+      cachedNativeImei = native.imei
+      return
+    }
+    const stored = captureDeviceImei(null)
+    if (stored.ok) cachedNativeImei = stored.imei
+  })()
+
+  return backgroundPrefetchPromise
 }
 
 /**
- * Reads IMEI from native bridge, storage, or manual entry (PWA cannot read IMEI in normal browsers).
+ * Reads IMEI from native bridge or storage (no manual entry).
+ */
+export async function captureDeviceImeiAsync() {
+  await prefetchDeviceImeiInBackground()
+
+  const native = await fetchNativeImeiAsync()
+  if (native.ok) {
+    cachedNativeImei = native.imei
+    return native
+  }
+
+  return captureDeviceImei(null)
+}
+
+/**
+ * Reads IMEI from native bridge or storage (PWA cannot read IMEI in normal browsers).
  */
 export function captureDeviceImei(manualImei) {
-  const sources = [readNativeImei(), manualImei]
+  const sources = [readNativeImei(), cachedNativeImei, manualImei]
   if (canUsePersistentStorage()) {
     try {
       sources.push(localStorage.getItem(DEVICE_IMEI_KEY))
@@ -101,7 +127,7 @@ export function captureDeviceImei(manualImei) {
   return {
     ok: false,
     error:
-      'Device IMEI could not be read. Enter your device IMEI or open the installed app on the registered phone.',
+      'Device IMEI could not be read. Open the installed app on the registered Android phone.',
   }
 }
 
@@ -133,8 +159,9 @@ export function validateImeiMatchesDefault(imei) {
  * Capture IMEI and verify it matches the default allowed IMEI.
  * Used before redirecting to the home screen.
  */
-export async function captureDeviceIdAsync(manualImei) {
-  const captured = await captureDeviceImeiAsync(manualImei)
+/** Capture + compare IMEI to registered device (call on sign-in). */
+export async function captureDeviceIdAsync() {
+  const captured = await captureDeviceImeiAsync()
   if (!captured.ok) {
     return { ok: false, code: 'IMEI_CAPTURE_FAILED', error: captured.error }
   }
@@ -171,8 +198,8 @@ export async function captureDeviceIdAsync(manualImei) {
   return { ok: true, deviceId: validated.imei }
 }
 
-export function captureDeviceId(manualImei) {
-  const captured = captureDeviceImei(manualImei)
+export function captureDeviceId() {
+  const captured = captureDeviceImei(null)
   if (!captured.ok) {
     return { ok: false, code: 'IMEI_CAPTURE_FAILED', error: captured.error }
   }

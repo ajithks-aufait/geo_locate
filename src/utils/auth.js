@@ -23,7 +23,7 @@ export function getSessionEmail() {
 
 export function isAuthenticated() {
   try {
-    if (!captureDeviceId(null).ok) {
+    if (!captureDeviceId().ok) {
       clearSession()
       return false
     }
@@ -65,7 +65,7 @@ function setAuthenticated(value, email = '', remember = true) {
 /**
  * Demo login + device binding (IMEI is not available in PWA; uses install device ID).
  */
-export async function login({ email, password, remember, imei }) {
+export async function login({ email, password, remember }) {
   const trimmed = email.trim()
   if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
     return { ok: false, error: 'Enter a valid email address.' }
@@ -74,7 +74,7 @@ export async function login({ email, password, remember, imei }) {
     return { ok: false, error: 'Password must be at least 6 characters.' }
   }
 
-  const binding = await verifyAndBindDevice(trimmed, imei)
+  const binding = await verifyAndBindDevice(trimmed)
   if (!binding.ok) {
     if (binding.code === 'IMEI_MISMATCH') {
       return {
@@ -105,7 +105,7 @@ export async function login({ email, password, remember, imei }) {
     return { ok: false, error: 'Could not verify this device. Try again.' }
   }
 
-  if (!binding.deviceId || !(await captureDeviceIdAsync(imei)).ok) {
+  if (!binding.deviceId || !(await captureDeviceIdAsync()).ok) {
     return {
       ok: false,
       error: 'Device IMEI could not be verified. You cannot continue to the app.',

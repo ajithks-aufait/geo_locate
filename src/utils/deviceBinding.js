@@ -81,8 +81,8 @@ function setLocalBinding(email, deviceId) {
   writeLocalBindings(map)
 }
 
-export async function verifyAndBindDevice(email, manualImei) {
-  const captured = await captureDeviceIdAsync(manualImei)
+export async function verifyAndBindDevice(email) {
+  const captured = await captureDeviceIdAsync()
   if (!captured.ok) {
     return {
       ok: false,
@@ -156,7 +156,7 @@ export async function verifyAndBindDevice(email, manualImei) {
 }
 
 export function isDeviceAllowedForSession(email) {
-  const captured = captureDeviceId(null)
+  const captured = captureDeviceId()
   if (!captured.ok) return false
 
   const local = getLocalBinding(email)
